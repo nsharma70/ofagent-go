@@ -27,7 +27,6 @@ import (
 	"github.com/opencord/voltha-lib-go/v3/pkg/probe"
 	"github.com/opencord/voltha-lib-go/v3/pkg/version"
 	"os"
-	"strconv"
 )
 
 func printBanner() {
@@ -44,13 +43,13 @@ func printVersion() {
 	fmt.Println(version.VersionInfo.String("  "))
 }
 
-func setLogConfig(ctx context.Context, kvStoreHost, kvStoreType string, kvStorePort, kvStoreTimeout int) (kvstore.Client, error) {
-	client, err := kvstore.NewEtcdClient(kvStoreHost+":"+strconv.Itoa(kvStorePort), kvStoreTimeout)
+func setLogConfig(ctx context.Context, kvStoreAddress, kvStoreType string, kvStoreTimeout int) (kvstore.Client, error) {
+	client, err := kvstore.NewEtcdClient(kvStoreAddress, kvStoreTimeout)
 	if err != nil {
 		return nil, err
 	}
 
-	cm := conf.NewConfigManager(client, kvStoreType, kvStoreHost, kvStorePort, kvStoreTimeout)
+	cm := conf.NewConfigManager(client, kvStoreType, kvStoreAddress, kvStoreTimeout)
 	go conf.StartLogLevelConfigProcessing(cm, ctx)
 	return client, nil
 }
@@ -123,7 +122,12 @@ func main() {
 	 */
 	ctx := context.WithValue(context.Background(), probe.ProbeContextKey, p)
 
-	client, err := setLogConfig(ctx, config.KVStoreHost, config.KVStoreType, config.KVStorePort, config.KVStoreTimeout)
+	err = kvstore.ValidateAddress(config.KVStoreAddress)
+	if err != nil {
+		logger.Fatal("Invalid address\n")
+	}
+
+	client, err := setLogConfig(ctx, config.KVStoreAddress, config.KVStoreType, config.KVStoreTimeout)
 	if err != nil {
 		logger.Warnw("unable-to-create-kvstore-client", log.Fields{"error": err})
 	}
